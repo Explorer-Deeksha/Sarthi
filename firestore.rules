@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.user_id;
+    }
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    // ===============================================================
+    // User Profiles
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+                      hasOnlyAllowedFields(['full_name', 'avatar_url', 'onboarded', 'email']) &&
+                      isValidString('full_name', 1, 100);
+      allow update: if isOwner(userId) && 
+                      hasOnlyAllowedFields(['full_name', 'avatar_url', 'onboarded', 'email']);
+    }
+
+    // ===============================================================
+    // Personality Onboarding
+    // ===============================================================
+    match /personality_onboarding/{onboardingId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.user_id == request.auth.uid);
+      allow create: if isAuthenticated() && 
+                      request.resource.data.user_id == request.auth.uid &&
+                      hasOnlyAllowedFields(['communication_style', 'coping_mechanism', 'preferred_language', 'age_group', 'user_id', 'created_at']);
+    }
+
+    // ===============================================================
+    // Chat History
+    // ===============================================================
+    match /chat_history/{messageId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && 
+                      request.resource.data.user_id == request.auth.uid &&
+                      hasOnlyAllowedFields(['user_id', 'role', 'content', 'mood', 'created_at']);
+    }
+
+    // ===============================================================
+    // Daily Reflections
+    // ===============================================================
+    match /daily_reflections/{reflectionId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && 
+                      request.resource.data.user_id == request.auth.uid &&
+                      hasOnlyAllowedFields(['user_id', 'date', 'answers', 'mood', 'created_at']);
+    }
+
+    // ===============================================================
+    // Community Posts
+    // ===============================================================
+    match /community_posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                      request.resource.data.user_id == request.auth.uid &&
+                      hasOnlyAllowedFields(['user_id', 'content', 'is_anonymous', 'author_name', 'created_at']) &&
+                      isValidString('content', 1, 1000);
+      allow delete: if isDocOwner();
+    }
+
+    // ===============================================================
+    // Mood History
+    // ===============================================================
+    match /mood_history/{moodId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && 
+                      request.resource.data.user_id == request.auth.uid &&
+                      hasOnlyAllowedFields(['user_id', 'mood', 'source', 'score', 'created_at']);
+    }
+  }
+}

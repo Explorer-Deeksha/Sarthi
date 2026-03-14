@@ -1,0 +1,7 @@
+{
+  "name": "Sarthi - Your AI Emotional Companion",
+  "description": "A safe digital space to reflect, understand your emotions, and grow stronger every day through AI-guided support.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

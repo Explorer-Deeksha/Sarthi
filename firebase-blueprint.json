@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user profile information",
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string" },
+        "avatar_url": { "type": "string" },
+        "onboarded": { "type": "boolean" },
+        "email": { "type": "string" }
+      },
+      "required": ["full_name", "onboarded"]
+    },
+    "PersonalityOnboarding": {
+      "title": "Personality Onboarding",
+      "description": "Stores user personality onboarding answers",
+      "type": "object",
+      "properties": {
+        "communication_style": { "type": "string" },
+        "coping_mechanism": { "type": "string" },
+        "preferred_language": { "type": "string" },
+        "age_group": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["user_id", "created_at"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Stores chat history",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "mood": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["user_id", "role", "content", "created_at"]
+    },
+    "DailyReflection": {
+      "title": "Daily Reflection",
+      "description": "Stores daily reflections",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "date": { "type": "string" },
+        "answers": { "type": "object" },
+        "mood": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["user_id", "date", "answers", "mood", "created_at"]
+    },
+    "CommunityPost": {
+      "title": "Community Post",
+      "description": "Stores community posts",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "content": { "type": "string" },
+        "is_anonymous": { "type": "boolean" },
+        "author_name": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["user_id", "content", "created_at"]
+    },
+    "MoodHistory": {
+      "title": "Mood History",
+      "description": "Stores mood history for insights",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "mood": { "type": "string" },
+        "source": { "type": "string" },
+        "score": { "type": "number" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["user_id", "mood", "created_at"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/personality_onboarding/{onboardingId}": {
+      "schema": "PersonalityOnboarding",
+      "description": "Personality onboarding data"
+    },
+    "/chat_history/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat history"
+    },
+    "/daily_reflections/{reflectionId}": {
+      "schema": "DailyReflection",
+      "description": "Daily reflections"
+    },
+    "/community_posts/{postId}": {
+      "schema": "CommunityPost",
+      "description": "Community posts"
+    },
+    "/mood_history/{moodId}": {
+      "schema": "MoodHistory",
+      "description": "Mood history"
+    }
+  }
+}
