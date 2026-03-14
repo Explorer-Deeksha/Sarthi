@@ -3,6 +3,9 @@ import { Mood } from "../types";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
+// gemini-2.0-flash: 1,500 requests/day free tier (vs 20/day for gemini-3-flash-preview)
+const CHAT_MODEL = "gemini-2.0-flash";
+
 export const SARTHI_SYSTEM_INSTRUCTION = `
 You are Sarthi, a supportive AI emotional companion. 
 Your goal is to help users understand their emotions and reflect on their feelings.
@@ -24,7 +27,7 @@ export async function generateChatResponse(message: string, history: { role: str
   ];
 
   const response = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL,
     contents: contents,
     config: {
       systemInstruction: SARTHI_SYSTEM_INSTRUCTION + (personality ? `\nUser Personality Context: ${JSON.stringify(personality)}` : "")
@@ -41,7 +44,7 @@ export async function generateChatResponseStream(message: string, history: { rol
   ];
 
   const response = await genAI.models.generateContentStream({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL,
     contents: contents,
     config: {
       systemInstruction: SARTHI_SYSTEM_INSTRUCTION + (personality ? `\nUser Personality Context: ${JSON.stringify(personality)}` : "")
@@ -53,7 +56,7 @@ export async function generateChatResponseStream(message: string, history: { rol
 
 export async function detectMood(text: string): Promise<Mood> {
   const response = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL,
     contents: `Analyze the emotional sentiment of the following text and return exactly one word from this list: [happy, sad, anxious, lonely, stressed, neutral].
   
   Text: "${text}"
@@ -69,7 +72,7 @@ export async function detectMood(text: string): Promise<Mood> {
 
 export async function generateWeeklySummary(moodHistory: string[]) {
   const response = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL,
     contents: `Based on this list of daily moods from the past week: [${moodHistory.join(", ")}], provide a short, gentle, and insightful emotional summary for the user. Focus on patterns and offer encouragement.`,
   });
 
@@ -79,7 +82,7 @@ export async function generateWeeklySummary(moodHistory: string[]) {
 export async function analyzeTriggers(reflections: any[]) {
   const text = reflections.map(r => JSON.stringify(r.answers)).join("\n");
   const response = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL,
     contents: `Analyze these daily reflections and identify the top 3 emotional triggers and a personalized recommendation.
     Reflections:
     ${text}
@@ -100,11 +103,11 @@ export async function analyzeTriggers(reflections: any[]) {
 /**
  * Transcribes audio using Gemini's multimodal API.
  * Accepts base64-encoded audio (webm or ogg from MediaRecorder).
- * This bypasses the browser Web Speech API (which requires Google's servers and can fail with network errors).
+ * Bypasses the browser Web Speech API (which fails with 'network' errors on localhost).
  */
 export async function transcribeAudio(base64Audio: string, mimeType: string = 'audio/webm'): Promise<string> {
   const response = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL,
     contents: [{
       parts: [
         {
@@ -134,7 +137,7 @@ export async function generateVoiceChatResponse(message: string, history: { role
   ];
 
   const response = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL,
     contents: contents,
     config: {
       systemInstruction: voiceInstruction
