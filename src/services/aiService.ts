@@ -161,17 +161,24 @@ export async function analyzeTriggers(reflections: any[]) {
 
 export async function transcribeAudio(audioBase64: string, mimeType: string): Promise<string> {
   try {
+    // Gemini API often rejects mime types with codec parameters (e.g. 'audio/webm;codecs=opus')
+    // We strip the parameters and provide a fallback if it's empty (mobile browsers)
+    let cleanMimeType = mimeType ? mimeType.split(';')[0] : 'audio/webm';
+    
+    // Sometimes mobile sends 'audio/mp4' or 'audio/aac' which Gemini supports
+    console.log("Transcribing audio with mimeType:", cleanMimeType);
+
     const response = await withRateLimitRetry(() => genAI.models.generateContent({
       model: CHAT_MODEL,
       contents: [
         {
           role: 'user',
           parts: [
-            { text: "Accurately transcribe the following audio into text. Only return the transcript, nothing else." },
+            { text: "Accurately transcribe the following audio directly into text. Make sure to support Hindi, English, and Hinglish. Only return the final transcript, nothing else." },
             { 
               inlineData: { 
                 data: audioBase64, 
-                mimeType: mimeType 
+                mimeType: cleanMimeType 
               } 
             }
           ]
