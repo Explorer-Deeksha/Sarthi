@@ -4,7 +4,7 @@ import { Send, Sparkles, User, Heart, Mic, Volume2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, orderBy, limit, getDocs, addDoc } from 'firebase/firestore';
-import { generateChatResponseStream, detectMood } from '../services/aiService';
+import { generateChatResponseStream, detectMood, RateLimitError } from '../services/aiService';
 import { Mood, ChatMessage } from '../types';
 import { GenerateContentResponse } from "@google/genai";
 
@@ -101,6 +101,7 @@ export default function Chat({ setMood }: { setMood: (mood: Mood) => void }) {
       }));
 
       const stream = await generateChatResponseStream(currentInput, history);
+      if (!stream) throw new Error('No stream returned');
 
       const aiMsgId = (Date.now() + 1).toString();
       let fullContent = '';
@@ -138,9 +139,21 @@ export default function Chat({ setMood }: { setMood: (mood: Mood) => void }) {
           handleFirestoreError(error, OperationType.CREATE, 'chat_history');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
       setIsLoading(false);
+
+      // Show a friendly in-chat error message
+      const errorText = error instanceof RateLimitError
+        ? `⏳ I'm getting a lot of requests right now. Please wait about ${error.waitSeconds} seconds and try again.`
+        : '⚠️ Something went wrong. Please try again in a moment.';
+
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: errorText,
+        created_at: new Date().toISOString()
+      }]);
     }
   };
 
@@ -192,8 +205,8 @@ export default function Chat({ setMood }: { setMood: (mood: Mood) => void }) {
           >
             <div className={`flex gap-2.5 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
               <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${msg.role === 'user'
-                  ? 'bg-gradient-to-br from-primary to-primary-light shadow-sm shadow-primary/15'
-                  : 'bg-white border border-primary/10 shadow-sm'
+                ? 'bg-gradient-to-br from-primary to-primary-light shadow-sm shadow-primary/15'
+                : 'bg-white border border-primary/10 shadow-sm'
                 }`}>
                 {msg.role === 'user'
                   ? <User size={14} className="text-white" />
@@ -201,8 +214,8 @@ export default function Chat({ setMood }: { setMood: (mood: Mood) => void }) {
                 }
               </div>
               <div className={`p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                  ? 'bg-gradient-to-br from-primary to-primary-dark text-white rounded-tr-sm shadow-md shadow-primary/15'
-                  : 'glass rounded-tl-sm'
+                ? 'bg-gradient-to-br from-primary to-primary-dark text-white rounded-tr-sm shadow-md shadow-primary/15'
+                : 'glass rounded-tl-sm'
                 }`}>
                 <div className={msg.role === 'user' ? 'prose-user' : 'prose-chat'}>
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
