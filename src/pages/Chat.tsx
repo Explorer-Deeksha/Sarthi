@@ -4,7 +4,7 @@ import { Send, Sparkles, User, Heart, Mic, Volume2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, orderBy, limit, getDocs, addDoc } from 'firebase/firestore';
-import { generateChatResponseStream, detectMood, RateLimitError } from '../services/aiService';
+import { generateChatResponseStream, detectMood, RateLimitError, transcribeAudio } from '../services/aiService';
 import { Mood, ChatMessage } from '../types';
 import { GenerateContentResponse } from "@google/genai";
 
@@ -12,7 +12,77 @@ export default function Chat({ setMood }: { setMood: (mood: Mood) => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        setIsLoading(true);
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+        
+        try {
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = async () => {
+            const base64Audio = (reader.result as string).split(',')[1];
+            try {
+              const transcript = await transcribeAudio(base64Audio, mediaRecorder.mimeType);
+              if (transcript) {
+                setInput(prev => prev + (prev.trim() ? ' ' : '') + transcript);
+              }
+            } catch (error) {
+              console.error("Transcription error:", error);
+              alert("Sorry, we couldn't transcribe the audio. Please try again.");
+            } finally {
+              setIsLoading(false);
+            }
+          };
+        } catch (error) {
+          console.error("Error processing audio:", error);
+          setIsLoading(false);
+        }
+
+        // Clean up tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      alert("Please allow microphone access to use voice input.");
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -261,7 +331,8 @@ export default function Chat({ setMood }: { setMood: (mood: Mood) => void }) {
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
           <button
             type="button"
-            className="p-2 text-text-muted hover:text-primary transition-colors rounded-lg hover:bg-primary/5"
+            onClick={toggleRecording}
+            className={`p-2 transition-colors rounded-lg ${isRecording ? 'text-red-500 bg-red-100 animate-pulse' : 'text-text-muted hover:text-primary hover:bg-primary/5'}`}
           >
             <Mic size={18} />
           </button>

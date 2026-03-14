@@ -155,28 +155,33 @@ export async function analyzeTriggers(reflections: any[]) {
     return JSON.parse(response.text);
   } catch (err: any) {
     console.warn('analyzeTriggers failed:', err?.message || err);
-    return { triggers: [], recommendation: "Complete more daily reflections to unlock trigger analysis." };
+    return null;
   }
 }
 
-/**
- * Transcribes audio using Gemini's multimodal API.
- * Bypasses the browser Web Speech API (which fails with 'network' errors on localhost).
- */
-export async function transcribeAudio(base64Audio: string, mimeType: string = 'audio/webm'): Promise<string> {
+export async function transcribeAudio(audioBase64: string, mimeType: string): Promise<string> {
   try {
     const response = await withRateLimitRetry(() => genAI.models.generateContent({
       model: CHAT_MODEL,
-      contents: [{
-        parts: [
-          { inlineData: { mimeType, data: base64Audio } },
-          { text: "Please transcribe exactly what was said in this audio. Return only the transcribed text, nothing else. If no speech is detected, return an empty string." }
-        ]
-      }],
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: "Accurately transcribe the following audio into text. Only return the transcript, nothing else." },
+            { 
+              inlineData: { 
+                data: audioBase64, 
+                mimeType: mimeType 
+              } 
+            }
+          ]
+        }
+      ]
     }));
-    return (response.text || '').trim();
-  } catch (err) {
-    handleApiError(err);
+    return response.text.trim();
+  } catch (err: any) {
+    console.warn('transcribeAudio failed:', err?.message || err);
+    throw err;
   }
 }
 
